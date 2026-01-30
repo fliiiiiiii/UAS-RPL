@@ -7,9 +7,16 @@
 # 1. Config: #
 ~~~ php
 <?php
-$conn = mysqli_connect("localhost", "root", "", "sewa_kendaraan");
-date_default_timezone_set('Asia/Jakarta');
-if (!$conn) die("Koneksi gagal: " . mysqli_connect_error());
+$conn = mysqli_connect(
+    "sql308.infinityfree.com",
+    "if0_41027802",
+    "giDYlffY8QS",
+    "if0_41027802_sewa_kendaraan"
+);
+
+if (!$conn) {
+    die("Koneksi database gagal");
+}
 ?>
 ~~~
 
@@ -221,122 +228,209 @@ $pendapatan = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(total_bayar + d
 
 # 5. Kendaraan: #
 ~~~ php
-<?php 
-include 'config.php'; 
+<?php
+include 'config.php';
 session_start();
-if(!isset($_SESSION['admin'])) { header("Location: login.php"); exit; }
 
-// PROSES TAMBAH
-if(isset($_POST['tambah'])){
-    $nama = $_POST['nama']; $jenis = $_POST['jenis']; $plat = $_POST['plat']; $harga = $_POST['harga'];
-    mysqli_query($conn, "INSERT INTO kendaraan (nama, jenis, plat_nomor, harga_sewa) VALUES ('$nama', '$jenis', '$plat', '$harga')");
-    header("Location: kendaraan.php");
+if (!isset($_SESSION['admin'])) {
+    header("Location: login.php");
+    exit;
 }
 
-// PROSES UPDATE
-if(isset($_POST['update'])){
-    $id = $_POST['id'];
-    $nama = $_POST['nama'];
-    $jenis = $_POST['jenis'];
-    $harga = $_POST['harga_sewa'];
-    $plat = $_POST['plat_nomor'];
+/* =====================
+   PROSES TAMBAH
+===================== */
+if (isset($_POST['tambah'])) {
+    $nama  = mysqli_real_escape_string($conn, $_POST['nama']);
+    $jenis = mysqli_real_escape_string($conn, $_POST['jenis']);
+    $plat  = mysqli_real_escape_string($conn, $_POST['plat']);
+    $harga = mysqli_real_escape_string($conn, $_POST['harga']);
 
-    mysqli_query($conn, "UPDATE kendaraan SET nama='$nama', jenis='$jenis', harga_sewa='$harga', plat_nomor='$plat' WHERE id='$id'");
+    mysqli_query($conn, "
+        INSERT INTO kendaraan (nama, jenis, plat_nomor, harga_sewa, status)
+        VALUES ('$nama', '$jenis', '$plat', '$harga', 'Tersedia')
+    ");
+
     header("Location: kendaraan.php");
+    exit;
+}
+
+/* =====================
+   PROSES UPDATE
+===================== */
+if (isset($_POST['update'])) {
+    $id    = $_POST['id'];
+    $nama  = mysqli_real_escape_string($conn, $_POST['nama']);
+    $jenis = mysqli_real_escape_string($conn, $_POST['jenis']);
+    $plat  = mysqli_real_escape_string($conn, $_POST['plat_nomor']);
+    $harga = mysqli_real_escape_string($conn, $_POST['harga_sewa']);
+
+    mysqli_query($conn, "
+        UPDATE kendaraan SET
+            nama='$nama',
+            jenis='$jenis',
+            plat_nomor='$plat',
+            harga_sewa='$harga'
+        WHERE id='$id'
+    ");
+
+    header("Location: kendaraan.php");
+    exit;
+}
+
+/* =====================
+   PROSES HAPUS
+===================== */
+if (isset($_GET['hapus'])) {
+    $id = $_GET['hapus'];
+
+    mysqli_query($conn, "DELETE FROM kendaraan WHERE id='$id'");
+
+    header("Location: kendaraan.php");
+    exit;
 }
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Master Kendaraan</title>
+    <title>Manajemen Kendaraan</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light p-4">
-    <div class="container">
-        <div class="d-flex justify-content-between mb-3">
-            <h3>Manajemen Armada</h3>
-            <a href="index.php" class="btn btn-dark">Kembali ke Dashboard</a>
-        </div>
 
-        <div class="card mb-4 border-0 shadow-sm">
-            <div class="card-header bg-primary text-white fw-bold">Tambah Unit Baru</div>
-            <div class="card-body">
-                <form method="POST" class="row g-3">
-                    <div class="col-md-3"><input type="text" name="nama" class="form-control" placeholder="Nama Unit" required></div>
-                    <div class="col-md-2">
-                        <select name="jenis" class="form-select">
-                            <option value="Bus">Bus</option><option value="Minibus">Minibus</option>
-                            <option value="Mobil">Mobil</option><option value="Motor">Motor</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3"><input type="text" name="plat" class="form-control" placeholder="Plat Nomor" required></div>
-                    <div class="col-md-2"><input type="number" name="harga" class="form-control" placeholder="Harga Sewa" required></div>
-                    <div class="col-md-2"><button name="tambah" class="btn btn-success w-100">Simpan</button></div>
-                </form>
-            </div>
-        </div>
+<div class="container">
 
-        <div class="card border-0 shadow-sm">
-            <div class="card-body p-0">
-                <table class="table table-hover mb-0 align-middle">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Nama Unit</th><th>Jenis</th><th>Plat</th><th>Harga/Hari</th><th>Status</th><th class="text-center">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php
-                        $q = mysqli_query($conn, "SELECT * FROM kendaraan");
-                        while($k = mysqli_fetch_assoc($q)){
-                            $st = ($k['status'] == 'Tersedia') ? 'bg-info' : 'bg-danger';
-                        ?>
-                        <tr>
-                            <td><?= $k['nama'] ?></td>
-                            <td><?= $k['jenis'] ?></td>
-                            <td><?= $k['plat_nomor'] ?></td>
-                            <td>Rp <?= number_format($k['harga_sewa']) ?></td>
-                            <td><span class="badge <?= $st ?>"><?= $k['status'] ?></span></td>
-                            <td class="text-center">
-                                <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editK<?= $k['id'] ?>">Edit</button>
-                                <a href="hapus.php?id_k=<?= $k['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin hapus?')">Hapus</a>
-                            </td>
-                        </tr>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Manajemen Armada</h3>
+    <a href="index.php" class="btn btn-dark">
+        ⬅ Kembali ke Dashboard
+    </a>
+</div>
 
-                        <div class="modal fade" id="editK<?= $k['id'] ?>" tabindex="-1" aria-hidden="true">
-                            <div class="modal-dialog">
-                                <form method="POST" class="modal-content">
-                                    <div class="modal-header"><h5>Edit <?= $k['nama'] ?></h5></div>
-                                    <div class="modal-body">
-                                        <input type="hidden" name="id" value="<?= $k['id'] ?>">
-                                        <label class="small fw-bold">Nama</label>
-                                        <input type="text" name="nama" class="form-control mb-2" value="<?= $k['nama'] ?>">
-                                        <label class="small fw-bold">Jenis</label>
-                                        <select name="jenis" class="form-select mb-2">
-                                            <option value="Bus" <?= $k['jenis']=='Bus'?'selected':'' ?>>Bus</option>
-                                            <option value="Minibus" <?= $k['jenis']=='Minibus'?'selected':'' ?>>Minibus</option>
-                                            <option value="Mobil" <?= $k['jenis']=='Mobil'?'selected':'' ?>>Mobil</option>
-                                            <option value="Motor" <?= $k['jenis']=='Motor'?'selected':'' ?>>Motor</option>
-                                        </select>
-                                        <label class="small fw-bold">Plat Nomor</label>
-                                        <input type="text" name="plat_nomor" class="form-control mb-2" value="<?= $k['plat_nomor'] ?>">
-                                        <label class="small fw-bold">Harga Sewa</label>
-                                        <input type="number" name="harga_sewa" class="form-control" value="<?= $k['harga_sewa'] ?>">
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                                        <button type="submit" name="update" class="btn btn-primary">Simpan</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                        <?php } ?>
-                    </tbody>
-                </table>
-            </div>
+    <!-- ================= FORM TAMBAH ================= -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">Tambah Kendaraan</div>
+        <div class="card-body">
+            <form method="POST" class="row g-3">
+                <div class="col-md-3">
+                    <input type="text" name="nama" class="form-control" placeholder="Nama Unit" required>
+                </div>
+                <div class="col-md-2">
+                    <select name="jenis" class="form-select">
+                        <option>Bus</option>
+                        <option>Minibus</option>
+                        <option>Mobil</option>
+                        <option>Motor</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" name="plat" class="form-control" placeholder="Plat Nomor" required>
+                </div>
+                <div class="col-md-2">
+                    <input type="number" name="harga" class="form-control" placeholder="Harga Sewa" required>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" name="tambah" class="btn btn-success w-100">Simpan</button>
+                </div>
+            </form>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- ================= TABLE ================= -->
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Nama</th>
+                        <th>Jenis</th>
+                        <th>Plat</th>
+                        <th>Harga</th>
+                        <th>Status</th>
+                        <th width="180">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php
+                $q = mysqli_query($conn, "SELECT * FROM kendaraan");
+                while ($k = mysqli_fetch_assoc($q)) {
+                ?>
+                    <tr>
+                        <td><?= $k['nama'] ?></td>
+                        <td><?= $k['jenis'] ?></td>
+                        <td><?= $k['plat_nomor'] ?></td>
+                        <td>Rp <?= number_format($k['harga_sewa']) ?></td>
+                        <td>
+                            <span class="badge bg-info"><?= $k['status'] ?></span>
+                        </td>
+                        <td>
+                            <button
+                                type="button"
+                                class="btn btn-warning btn-sm"
+                                data-bs-toggle="modal"
+                                data-bs-target="#edit<?= $k['id'] ?>">
+                                Edit
+                            </button>
+
+                            <a
+                                href="kendaraan.php?hapus=<?= $k['id'] ?>"
+                                class="btn btn-danger btn-sm"
+                                onclick="return confirm('Yakin ingin menghapus data ini?')">
+                                Hapus
+                            </a>
+                        </td>
+                    </tr>
+                <?php } ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- ================= MODAL EDIT ================= -->
+<?php
+$q = mysqli_query($conn, "SELECT * FROM kendaraan");
+while ($k = mysqli_fetch_assoc($q)) {
+?>
+<div class="modal fade" id="edit<?= $k['id'] ?>" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit <?= $k['nama'] ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="id" value="<?= $k['id'] ?>">
+
+                <label>Nama</label>
+                <input type="text" name="nama" class="form-control mb-2" value="<?= $k['nama'] ?>">
+
+                <label>Jenis</label>
+                <select name="jenis" class="form-select mb-2">
+                    <option <?= $k['jenis']=='Bus'?'selected':'' ?>>Bus</option>
+                    <option <?= $k['jenis']=='Minibus'?'selected':'' ?>>Minibus</option>
+                    <option <?= $k['jenis']=='Mobil'?'selected':'' ?>>Mobil</option>
+                    <option <?= $k['jenis']=='Motor'?'selected':'' ?>>Motor</option>
+                </select>
+
+                <label>Plat Nomor</label>
+                <input type="text" name="plat_nomor" class="form-control mb-2" value="<?= $k['plat_nomor'] ?>">
+
+                <label>Harga Sewa</label>
+                <input type="number" name="harga_sewa" class="form-control" value="<?= $k['harga_sewa'] ?>">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" name="update" class="btn btn-primary">Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+<?php } ?>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
 ~~~
@@ -458,29 +552,49 @@ include 'config.php';
 session_start();
 if(!isset($_SESSION['admin'])) { header("Location: login.php"); exit; }
 
+/* =====================
+   PROSES TAMBAH
+===================== */
 if(isset($_POST['tambah'])){
-    $n = $_POST['nama']; $k = $_POST['ktp']; $t = $_POST['telp'];
+    $n = $_POST['nama'];
+    $k = $_POST['ktp'];
+    $t = $_POST['telp'];
     mysqli_query($conn, "INSERT INTO pelanggan (nama, ktp, telepon) VALUES ('$n', '$k', '$t')");
     header("Location: pelanggan.php");
+    exit;
 }
 
+/* =====================
+   PROSES UPDATE
+===================== */
 if(isset($_POST['update'])){
-    $id = $_POST['id']; $n = $_POST['nama']; $k = $_POST['ktp']; $t = $_POST['telp'];
+    $id = $_POST['id'];
+    $n  = $_POST['nama'];
+    $k  = $_POST['ktp'];
+    $t  = $_POST['telp'];
     mysqli_query($conn, "UPDATE pelanggan SET nama='$n', ktp='$k', telepon='$t' WHERE id='$id'");
     header("Location: pelanggan.php");
+    exit;
 }
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta charset="UTF-8">
     <title>Master Pelanggan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light p-4">
+
 <div class="container">
-    <div class="d-flex justify-content-between mb-3"><h3>Data Pelanggan</h3><a href="index.php" class="btn btn-dark">Dashboard</a></div>
-    
+
+    <div class="d-flex justify-content-between mb-3">
+        <h3>Data Pelanggan</h3>
+        <a href="index.php" class="btn btn-dark">Dashboard</a>
+    </div>
+
     <div class="row">
+        <!-- ================= FORM TAMBAH ================= -->
         <div class="col-md-4">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-dark text-white">Tambah Pelanggan</div>
@@ -489,49 +603,83 @@ if(isset($_POST['update'])){
                         <input type="text" name="nama" class="form-control mb-2" placeholder="Nama Lengkap" required>
                         <input type="text" name="ktp" class="form-control mb-2" placeholder="No. KTP" required>
                         <input type="text" name="telp" class="form-control mb-3" placeholder="Telepon" required>
-                        <button name="tambah" class="btn btn-primary w-100">Simpan Pelanggan</button>
+                        <button type="submit" name="tambah" class="btn btn-primary w-100">Simpan Pelanggan</button>
                     </form>
                 </div>
             </div>
         </div>
+
+        <!-- ================= TABLE ================= -->
         <div class="col-md-8">
             <div class="card border-0 shadow-sm p-0">
                 <table class="table table-hover mb-0 align-middle">
-                    <thead class="table-dark"><tr><th>Nama</th><th>KTP</th><th>Telepon</th><th class="text-center">Aksi</th></tr></thead>
-                    <tbody>
-                        <?php $q = mysqli_query($conn, "SELECT * FROM pelanggan"); 
-                        while($r = mysqli_fetch_assoc($q)){ ?>
+                    <thead class="table-dark">
                         <tr>
-                            <td><?= $r['nama'] ?></td><td><?= $r['ktp'] ?></td><td><?= $r['telepon'] ?></td>
+                            <th>Nama</th>
+                            <th>KTP</th>
+                            <th>Telepon</th>
+                            <th class="text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php 
+                    $q = mysqli_query($conn, "SELECT * FROM pelanggan"); 
+                    while($r = mysqli_fetch_assoc($q)){ 
+                    ?>
+                        <tr>
+                            <td><?= $r['nama'] ?></td>
+                            <td><?= $r['ktp'] ?></td>
+                            <td><?= $r['telepon'] ?></td>
                             <td class="text-center">
-                                <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editP<?= $r['id'] ?>">Edit</button>
-                                <a href="hapus.php?id_p=<?= $r['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Hapus pelanggan?')">Hapus</a>
+                                <button
+                                    type="button"
+                                    class="btn btn-warning btn-sm"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#editP<?= $r['id'] ?>">
+                                    Edit
+                                </button>
+                                <a href="hapus.php?id_p=<?= $r['id'] ?>" 
+                                   class="btn btn-danger btn-sm"
+                                   onclick="return confirm('Hapus pelanggan?')">
+                                   Hapus
+                                </a>
                             </td>
                         </tr>
-                        <div class="modal fade" id="editP<?= $r['id'] ?>" tabindex="-1" aria-hidden="true">
-                            <div class="modal-dialog">
-                                <form method="POST" class="modal-content">
-                                    <div class="modal-header"><h5>Edit Pelanggan</h5></div>
-                                    <div class="modal-body">
-                                        <input type="hidden" name="id" value="<?= $r['id'] ?>">
-                                        <input type="text" name="nama" class="form-control mb-2" value="<?= $r['nama'] ?>">
-                                        <input type="text" name="ktp" class="form-control mb-2" value="<?= $r['ktp'] ?>">
-                                        <input type="text" name="telp" class="form-control mb-2" value="<?= $r['telepon'] ?>">
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                                        <button type="submit" name="update" class="btn btn-primary">Simpan</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                        <?php } ?>
+                    <?php } ?>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 </div>
+
+<!-- ================= MODAL EDIT (DI LUAR TABLE) ================= -->
+<?php 
+$q = mysqli_query($conn, "SELECT * FROM pelanggan"); 
+while($r = mysqli_fetch_assoc($q)){ 
+?>
+<div class="modal fade" id="editP<?= $r['id'] ?>" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Pelanggan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="id" value="<?= $r['id'] ?>">
+                <input type="text" name="nama" class="form-control mb-2" value="<?= $r['nama'] ?>">
+                <input type="text" name="ktp" class="form-control mb-2" value="<?= $r['ktp'] ?>">
+                <input type="text" name="telp" class="form-control mb-2" value="<?= $r['telepon'] ?>">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" name="update" class="btn btn-primary">Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+<?php } ?>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
